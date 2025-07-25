@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "social-media": {
+      "command": "node",
+      "args": ["--experimental-modules", "/path/to/aws-hackathon-07-25-2025/dist/index.js"],
+      "env": {
+        "MCP_TRANSPORT": "stdio"
+      }
+    }
+  }
+}

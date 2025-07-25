@@ -1,0 +1,40 @@
+{
+  "name": "startup-sentiment-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for social media scraping, sentiment analysis, and startup insights",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "mcp": "tsx src/index.ts",
+    "dashboard": "tsx dashboard/server.ts"
+  },
+  "keywords": [
+    "mcp",
+    "sentiment-analysis",
+    "social-media",
+    "startup"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.848.0",
+    "@modelcontextprotocol/sdk": "^1.17.0",
+    "@temporalio/client": "^1.12.1",
+    "@types/node": "^24.1.0",
+    "axios": "^1.11.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "mongodb": "^6.18.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3"
+  }
+}

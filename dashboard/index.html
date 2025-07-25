@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Startup Sentiment Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            padding: 2rem 0;
+            border-bottom: 2px solid #333;
+            margin-bottom: 2rem;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(45deg, #4CAF50, #2196F3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+        
+        .subtitle {
+            color: #888;
+            font-size: 1.1rem;
+        }
+        
+        .search-box {
+            margin: 2rem 0;
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+        
+        input[type="text"] {
+            padding: 12px 20px;
+            font-size: 16px;
+            border: 2px solid #333;
+            background: #1a1a1a;
+            color: #fff;
+            border-radius: 8px;
+            width: 300px;
+        }
+        
+        button {
+            padding: 12px 30px;
+            font-size: 16px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: #1976D2;
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #888;
+        }
+        
+        .results {
+            display: grid;
+            gap: 2rem;
+        }
+        
+        .card {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.3s;
+        }
+        
+        .card:hover {
+            border-color: #555;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        
+        .card h2 {
+            color: #2196F3;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+        
+        .sentiment-score {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin: 0.5rem 0;
+        }
+        
+        .sentiment-positive {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .sentiment-negative {
+            background: #f44336;
+            color: white;
+        }
+        
+        .sentiment-neutral {
+            background: #888;
+            color: white;
+        }
+        
+        .sentiment-mixed {
+            background: #FF9800;
+            color: white;
+        }
+        
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .metric {
+            background: #0a0a0a;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #2196F3;
+        }
+        
+        .metric-label {
+            color: #888;
+            font-size: 0.9rem;
+        }
+        
+        .posts-list {
+            margin-top: 1rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .post-item {
+            background: #0a0a0a;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 8px;
+            border-left: 3px solid #333;
+        }
+        
+        .post-platform {
+            color: #2196F3;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        
+        .post-content {
+            margin-top: 0.5rem;
+            color: #ccc;
+        }
+        
+        .post-engagement {
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            color: #888;
+        }
+        
+        .error {
+            background: #f44336;
+            color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            text-align: center;
+        }
+        
+        .timestamp {
+            color: #666;
+            font-size: 0.85rem;
+            text-align: right;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Startup Sentiment Dashboard</h1>
+            <p class="subtitle">Real-time social media sentiment analysis powered by AI</p>
+        </header>
+        
+        <div class="search-box">
+            <input type="text" id="startupInput" placeholder="Enter startup name..." value="OpenAI">
+            <button id="analyzeBtn" onclick="analyzeStartup()">Analyze</button>
+        </div>
+        
+        <div id="results" class="results"></div>
+    </div>
+
+    <script>
+        let isLoading = false;
+
+        async function analyzeStartup() {
+            if (isLoading) return;
+            
+            const startupName = document.getElementById('startupInput').value.trim();
+            if (!startupName) {
+                alert('Please enter a startup name');
+                return;
+            }
+            
+            isLoading = true;
+            const btn = document.getElementById('analyzeBtn');
+            btn.disabled = true;
+            btn.textContent = 'Analyzing...';
+            
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="loading">🔍 Analyzing ' + startupName + '...</div>';
+            
+            try {
+                // Fetch data from the API endpoint
+                const response = await fetch(`http://localhost:3456/analyze/${encodeURIComponent(startupName)}`);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Analysis failed');
+                }
+                
+                displayResults(data);
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            } finally {
+                isLoading = false;
+                btn.disabled = false;
+                btn.textContent = 'Analyze';
+            }
+        }
+        
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('results');
+            
+            let html = '';
+            
+            // Sentiment Overview Card
+            if (data.sentiment) {
+                html += `
+                    <div class="card">
+                        <h2>Sentiment Analysis</h2>
+                        <span class="sentiment-score sentiment-${data.sentiment.overall.toLowerCase()}">
+                            ${data.sentiment.overall} (${Math.round(data.sentiment.confidence * 100)}% confidence)
+                        </span>
+                        <div class="metrics">
+                            <div class="metric">
+                                <div class="metric-value">${data.sentiment.positive || 0}</div>
+                                <div class="metric-label">Positive</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value">${data.sentiment.negative || 0}</div>
+                                <div class="metric-label">Negative</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value">${data.sentiment.neutral || 0}</div>
+                                <div class="metric-label">Neutral</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Social Media Activity Card
+            if (data.socialActivity) {
+                html += `
+                    <div class="card">
+                        <h2>Social Media Activity</h2>
+                        <div class="metrics">
+                            <div class="metric">
+                                <div class="metric-value">${data.socialActivity.totalPosts || 0}</div>
+                                <div class="metric-label">Total Posts</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value">${data.socialActivity.totalEngagement || 0}</div>
+                                <div class="metric-label">Engagement</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Recent Posts Card
+            if (data.recentPosts && data.recentPosts.length > 0) {
+                html += `
+                    <div class="card">
+                        <h2>Recent Mentions</h2>
+                        <div class="posts-list">
+                            ${data.recentPosts.map(post => `
+                                <div class="post-item">
+                                    <div class="post-platform">${post.platform || 'Unknown'}</div>
+                                    <div class="post-content">${post.content || post.text || ''}</div>
+                                    <div class="post-engagement">
+                                        ${post.engagement ? 
+                                            `💬 ${post.engagement.comments || 0} 
+                                             ❤️ ${post.engagement.likes || 0} 
+                                             🔄 ${post.engagement.shares || 0}` 
+                                            : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Summary Card
+            if (data.summary) {
+                html += `
+                    <div class="card">
+                        <h2>Executive Summary</h2>
+                        <p>${data.summary}</p>
+                        <div class="timestamp">Generated: ${new Date().toLocaleString()}</div>
+                    </div>
+                `;
+            }
+            
+            resultsDiv.innerHTML = html || '<div class="error">No data available</div>';
+        }
+        
+        // Allow Enter key to trigger analysis
+        document.getElementById('startupInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                analyzeStartup();
+            }
+        });
+    </script>
+</body>
+</html>
