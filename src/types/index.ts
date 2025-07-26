@@ -55,9 +55,19 @@ export interface SentimentResult {
   confidence: number;
   aspects?: Array<{
     aspect: string;
-    sentiment: 'positive' | 'negative' | 'neutral';
+    sentiment: 'positive' | 'negative' | 'neutral' | string; // Allow string for flexibility
     score: number;
+    insight?: string;
   }>;
+  themes?: string[];
+  businessContext?: string;
+  nuance?: string;
+  business_implications?: string;
+  _mock?: boolean;
+  _error?: string;
+  _claudeError?: string;
+  _model?: string;
+  [key: string]: any; // Allow additional properties
 }
 
 // Startup analysis types

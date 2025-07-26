@@ -4,6 +4,8 @@ import { twitterSearchTool } from './twitter.js';
 import { blueskySearchTool } from './bluesky.js';
 import { youtubeSearchTool } from './youtube.js';
 import { redditSearchTool } from './reddit.js';
+import { tiktokSearchTool } from './tiktok.js';
+import { instagramSearchTool } from './instagram.js';
 import { tavilyWebSearchTool, tavilyLinkedInSearchTool, tavilyNewsSearchTool, tavilyTechSearchTool } from './tavily.js';
 import { sentimentAnalysisTool } from './sentiment.js';
 import { saveToMongoDB } from '../services/mongodb.js';
@@ -16,6 +18,8 @@ const StartupAnalysisSchema = z.object({
     linkedin: z.string().optional(),
     bluesky: z.string().optional(),
     youtube: z.string().optional(),
+    tiktok: z.string().optional(),
+    instagram: z.string().optional(),
   }).optional().describe('Official company social media accounts'),
   founders: z.array(z.object({
     name: z.string(),
@@ -80,6 +84,31 @@ async function analyzeStartup(params: z.infer<typeof StartupAnalysisSchema>): Pr
     })
       .then(r => { results.data_sources.reddit = r; })
       .catch(e => { results.data_sources.reddit = `Error: ${e.message}`; })
+  );
+  
+  // TikTok search with smart matching
+  searchPromises.push(
+    tiktokSearchTool.handler({ 
+      query: startup_name, 
+      limit: 50,
+      smartMatch: true,
+      website 
+    })
+      .then(r => { results.data_sources.tiktok = r; })
+      .catch(e => { results.data_sources.tiktok = `Error: ${e.message}`; })
+  );
+  
+  // Instagram search
+  searchPromises.push(
+    instagramSearchTool.handler({ 
+      query: startup_name, 
+      type: 'hashtag',
+      limit: 50,
+      smartMatch: true,
+      website 
+    })
+      .then(r => { results.data_sources.instagram = r; })
+      .catch(e => { results.data_sources.instagram = `Error: ${e.message}`; })
   );
   
   // Web searches
@@ -157,6 +186,9 @@ async function analyzeStartup(params: z.infer<typeof StartupAnalysisSchema>): Pr
   // Generate executive summary
   const summary = generateExecutiveSummary(results);
   
+  console.error(`Generated summary length: ${summary.length}`);
+  console.error(`Summary preview: ${summary.substring(0, 200)}...`);
+  
   return summary;
 }
 
@@ -197,9 +229,10 @@ function generateExecutiveSummary(results: Record<string, any>): string {
   }
   
   summary += `\n## Key Insights\n`;
-  summary += `1. Social Media Presence: Active on ${Object.keys(data_sources).filter(k => ['twitter', 'bluesky', 'youtube'].includes(k)).length} platforms\n`;
+  summary += `1. Social Media Presence: Active on ${Object.keys(data_sources).filter(k => ['twitter', 'bluesky', 'youtube', 'tiktok', 'instagram', 'reddit'].includes(k)).length} platforms\n`;
   summary += `2. News Coverage: ${data_sources.news ? 'Found recent news articles' : 'Limited news coverage'}\n`;
   summary += `3. Tech Community: ${data_sources.tech_community ? 'Discussed in tech forums' : 'Limited tech community presence'}\n`;
+  summary += `4. Visual Platforms: ${data_sources.tiktok || data_sources.instagram ? 'Active on visual/video platforms' : 'Limited visual content presence'}\n`;
   
   summary += `\n## Recommendations\n`;
   summary += `- Review detailed data in MongoDB for deeper insights\n`;

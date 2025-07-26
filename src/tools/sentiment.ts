@@ -383,7 +383,9 @@ async function analyzeSentiment(params: z.infer<typeof SentimentAnalysisSchema>)
           aspectMap.set(aspect.aspect, { positive: 0, negative: 0, neutral: 0 });
         }
         const counts = aspectMap.get(aspect.aspect)!;
-        counts[aspect.sentiment]++;
+        if (aspect.sentiment === 'positive' || aspect.sentiment === 'negative' || aspect.sentiment === 'neutral') {
+          counts[aspect.sentiment]++;
+        }
       }
     }
   }

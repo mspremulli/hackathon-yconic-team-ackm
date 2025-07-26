@@ -138,11 +138,11 @@ export class RateLimiter extends EventEmitter {
 
 // Create singleton instances for different services
 export const bedrockRateLimiter = new RateLimiter({
-  maxRequestsPerMinute: 30, // Adjust based on your AWS limits
-  maxRequestsPerSecond: 1,
-  maxRetries: 3,
-  retryDelay: 2000,
-  backoffMultiplier: 2
+  maxRequestsPerMinute: 20, // More conservative to avoid rate limits
+  maxRequestsPerSecond: 0.5, // One request every 2 seconds
+  maxRetries: 5,
+  retryDelay: 5000, // 5 seconds initial delay
+  backoffMultiplier: 3 // More aggressive backoff
 });
 
 export const socialMediaRateLimiter = new RateLimiter({

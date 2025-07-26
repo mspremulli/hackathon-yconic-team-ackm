@@ -342,13 +342,27 @@
                 `;
             }
             
-            // Summary Card
+            // Executive Summary Card
             if (data.summary) {
                 html += `
                     <div class="card">
                         <h2>Executive Summary</h2>
-                        <p>${data.summary}</p>
+                        <div class="summary-content">
+                            <pre>${data.summary}</pre>
+                        </div>
                         <div class="timestamp">Generated: ${new Date().toLocaleString()}</div>
+                    </div>
+                `;
+            }
+            
+            // Senso.ai Summary Card (if available)
+            if (data.sensoSummary) {
+                html += `
+                    <div class="card">
+                        <h2>AI-Powered Summary (Senso.ai)</h2>
+                        <div class="summary-content">
+                            <pre>${data.sensoSummary}</pre>
+                        </div>
                     </div>
                 `;
             }

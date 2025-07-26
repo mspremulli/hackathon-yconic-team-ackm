@@ -15,6 +15,8 @@ import { twitterSearchTool } from './tools/twitter.js';
 import { blueskySearchTool } from './tools/bluesky.js';
 import { youtubeSearchTool } from './tools/youtube.js';
 import { redditSearchTool } from './tools/reddit.js';
+import { tiktokSearchTool } from './tools/tiktok.js';
+import { instagramSearchTool } from './tools/instagram.js';
 import { 
   tavilyWebSearchTool, 
   tavilyLinkedInSearchTool, 
@@ -25,6 +27,14 @@ import { brightDataSearchTool, brightDataSocialProfileTool } from './tools/brigh
 import { sentimentAnalysisTool } from './tools/sentiment.js';
 import { startupAnalysisTool } from './tools/startup-analysis.js';
 import { dashboardSummaryTool } from './tools/dashboard.js';
+import { sensoSummaryTool, getSensoSummaryTool } from './tools/senso.js';
+import { 
+  temporalStartupAnalysisTool,
+  checkTemporalWorkflowTool,
+  getTemporalWorkflowResultTool,
+  startTemporalMonitoringTool,
+  cancelTemporalWorkflowTool
+} from './tools/temporal-startup-analysis.js';
 
 // Import resources
 import { startupDataResource } from './resources/startup-data.js';
@@ -55,6 +65,8 @@ const tools = [
   blueskySearchTool,
   youtubeSearchTool,
   redditSearchTool,
+  tiktokSearchTool,
+  instagramSearchTool,
   tavilyWebSearchTool,
   tavilyLinkedInSearchTool,
   tavilyNewsSearchTool,
@@ -64,6 +76,13 @@ const tools = [
   sentimentAnalysisTool,
   startupAnalysisTool,
   dashboardSummaryTool,
+  sensoSummaryTool,
+  getSensoSummaryTool,
+  temporalStartupAnalysisTool,
+  checkTemporalWorkflowTool,
+  getTemporalWorkflowResultTool,
+  startTemporalMonitoringTool,
+  cancelTemporalWorkflowTool,
 ];
 
 // All available resources

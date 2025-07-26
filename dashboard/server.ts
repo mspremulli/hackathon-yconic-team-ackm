@@ -9,6 +9,7 @@ import 'dotenv/config';
 import { startupAnalysisTool } from '../src/tools/startup-analysis.js';
 import { dashboardSummaryTool } from '../src/tools/dashboard.js';
 import { sentimentAnalysisTool } from '../src/tools/sentiment.js';
+import { sensoSummaryTool } from '../src/tools/senso.js';
 import { queryMongoDB } from '../src/services/mongodb.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -34,19 +35,25 @@ app.get('/analyze/:startup', async (req, res) => {
       keywords: [startup]
     });
     
-    // Parse the analysis result (it comes as a formatted string)
-    const lines = analysisResult.split('\n');
-    let summary = '';
-    let dataCollected = false;
+    // The analysis result is already a complete formatted summary
+    const fullSummary = analysisResult;
     
-    // Extract summary from the formatted text
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i].includes('Data Collection Summary')) {
-        dataCollected = true;
-      }
-      if (lines[i].includes('## Summary') || lines[i].includes('## Executive Summary')) {
-        summary = lines.slice(i + 1).join('\n').trim();
-        break;
+    // Debug: Log the actual summary content
+    console.log('Analysis Result Length:', analysisResult.length);
+    console.log('First 500 chars:', analysisResult.substring(0, 500));
+    
+    // Extract key metrics from the summary
+    const lines = analysisResult.split('\n');
+    let dataCollected = false;
+    let successfulSources = 0;
+    
+    for (const line of lines) {
+      if (line.includes('Successfully collected data from')) {
+        const match = line.match(/Successfully collected data from (\d+) sources/);
+        if (match) {
+          successfulSources = parseInt(match[1]);
+          dataCollected = successfulSources > 0;
+        }
       }
     }
     
@@ -111,6 +118,21 @@ app.get('/analyze/:startup', async (req, res) => {
       return sum;
     }, 0);
     
+    // Try to generate Senso.ai summary if API key is available
+    let sensoSummary = null;
+    if (process.env.SENSO_API_KEY) {
+      try {
+        console.log('Generating Senso.ai summary...');
+        const sensoResult = await sensoSummaryTool.handler({
+          startup_name: startup,
+          summary_type: 'executive'
+        });
+        sensoSummary = sensoResult;
+      } catch (error) {
+        console.error('Senso.ai summary generation failed:', error);
+      }
+    }
+    
     // Return structured data
     res.json({
       startup: startup,
@@ -120,7 +142,12 @@ app.get('/analyze/:startup', async (req, res) => {
         totalEngagement
       },
       recentPosts: recentPosts.slice(0, 5), // Top 5 recent posts
-      summary: summary || `Analysis complete for ${startup}. ${dataCollected ? 'Data collected from multiple sources.' : 'Limited data available.'}`
+      summary: fullSummary, // Full executive summary from analysis
+      sensoSummary: sensoSummary, // AI-powered summary from Senso.ai
+      metrics: {
+        successfulSources,
+        dataCollected
+      }
     });
     
   } catch (error: any) {

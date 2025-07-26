@@ -78,6 +78,7 @@ async function scrapeSocialProfile(platform: string, username: string): Promise<
     linkedin: `https://www.linkedin.com/in/${username}`,
     instagram: `https://www.instagram.com/${username}`,
     github: `https://github.com/${username}`,
+    tiktok: `https://www.tiktok.com/@${username}`,
   };
   
   const url = platformUrls[platform.toLowerCase()];
@@ -91,6 +92,7 @@ async function scrapeSocialProfile(platform: string, username: string): Promise<
     linkedin: '.pv-top-card',
     instagram: 'article',
     github: '.js-profile-editable-area',
+    tiktok: '[data-e2e="user-info"]',
   };
   
   return scrapeWithBrightData({
@@ -112,7 +114,7 @@ export const brightDataSocialProfileTool: Tool = {
   name: 'brightdata_social_profile',
   description: 'Scrape social media profiles with Bright Data',
   inputSchema: z.object({
-    platform: z.enum(['twitter', 'linkedin', 'instagram', 'github']),
+    platform: z.enum(['twitter', 'linkedin', 'instagram', 'github', 'tiktok']),
     username: z.string().describe('Username or profile ID'),
   }),
   handler: async (params) => scrapeSocialProfile(params.platform, params.username),
