@@ -46,16 +46,16 @@ export async function analyzeBatchWithClaude(texts: string[], useMistralFallback
     `[Text ${index + 1}]: "${text.substring(0, 500)}${text.length > 500 ? '...' : ''}"`
   ).join('\n\n');
   
-  const prompt = `Analyze the sentiment of these ${texts.length} texts. For each text, provide sentiment analysis.
+  const prompt = `You are a sentiment analysis API. Analyze these ${texts.length} texts and return ONLY valid JSON with no additional text or explanation.
 
 ${formattedTexts}
 
-Provide your response in this exact JSON format:
+Return JSON in exactly this format:
 {
   "results": [
     {
       "index": 0,
-      "sentiment": "positive|negative|neutral|mixed",
+      "sentiment": "positive",
       "score": 0.85,
       "confidence": 0.92,
       "aspects": [
@@ -69,7 +69,9 @@ Provide your response in this exact JSON format:
     "key_themes": ["AI technology", "customer satisfaction", "pricing concerns"],
     "business_implications": "Strong positive reception with some pricing sensitivity"
   }
-}`;
+}
+
+IMPORTANT: Return ONLY the JSON object. No markdown, no explanations, no additional text.`;
 
   try {
     const command = new InvokeModelCommand({
@@ -78,7 +80,7 @@ Provide your response in this exact JSON format:
       accept: 'application/json',
       body: JSON.stringify({
         anthropic_version: "bedrock-2023-05-31",
-        max_tokens: 2000,
+        max_tokens: 4000,
         temperature: 0.1,
         messages: [{
           role: "user",
@@ -93,21 +95,58 @@ Provide your response in this exact JSON format:
     // Parse Claude's response
     const content = responseBody.content[0].text;
     
-    // Try to extract JSON from Claude's response
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      try {
-        const result = JSON.parse(jsonMatch[0]) as BatchSentimentResult;
-        
-        // Cache the successful result
-        sentimentCache.set(cacheKey, result, 600); // 10 minutes
-        
-        return result;
-      } catch (e) {
-        throw new Error('Failed to parse JSON from Claude batch output');
-      }
+    // Log the raw response for debugging
+    console.error('Claude raw response length:', content.length);
+    if (content.length < 1000) {
+      console.error('Claude raw response:', content);
     } else {
-      throw new Error('No JSON found in Claude batch output');
+      console.error('Claude raw response preview:', content.substring(0, 200) + '...');
+    }
+    
+    // Try multiple JSON extraction strategies
+    let result: BatchSentimentResult | null = null;
+    
+    // Strategy 1: Try to parse the entire response as JSON
+    try {
+      result = JSON.parse(content) as BatchSentimentResult;
+      console.error('Successfully parsed entire response as JSON');
+    } catch (e1) {
+      // Strategy 2: Extract JSON using regex
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          result = JSON.parse(jsonMatch[0]) as BatchSentimentResult;
+          console.error('Successfully extracted JSON using regex');
+        } catch (e2) {
+          // Strategy 3: Try to find JSON between code blocks
+          const codeBlockMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
+          if (codeBlockMatch) {
+            try {
+              result = JSON.parse(codeBlockMatch[1]) as BatchSentimentResult;
+              console.error('Successfully extracted JSON from code block');
+            } catch (e3) {
+              console.error('Failed to parse JSON from code block:', e3);
+            }
+          }
+        }
+      }
+    }
+    
+    if (result && result.results) {
+      // Validate the result structure
+      if (!Array.isArray(result.results)) {
+        throw new Error('Invalid result structure: results is not an array');
+      }
+      
+      // Cache the successful result
+      sentimentCache.set(cacheKey, result, 600); // 10 minutes
+      
+      return result;
+    } else {
+      // Log more details for debugging
+      console.error('Failed to extract valid JSON from Claude response');
+      console.error('Response preview:', content.substring(0, 500));
+      throw new Error('Failed to parse JSON from Claude batch output');
     }
   } catch (error: any) {
     console.error('Claude batch sentiment analysis error:', error.message);
@@ -154,11 +193,11 @@ export async function analyzeBatchWithMistral(texts: string[]): Promise<BatchSen
     `[Text ${index + 1}]: "${text.substring(0, 500)}${text.length > 500 ? '...' : ''}"`
   ).join('\n\n');
   
-  const prompt = `Analyze the sentiment of these ${texts.length} texts. For each text, provide sentiment analysis.
+  const prompt = `You are a sentiment analysis API. Analyze these ${texts.length} texts and return ONLY valid JSON.
 
 ${formattedTexts}
 
-Provide your response in this exact JSON format:
+Return JSON in exactly this format:
 {
   "results": [
     {
@@ -177,7 +216,9 @@ Provide your response in this exact JSON format:
     "key_themes": ["AI technology", "customer satisfaction", "pricing concerns"],
     "business_implications": "Strong positive reception with some pricing sensitivity"
   }
-}`;
+}
+
+Return ONLY the JSON. No other text.`;
 
   try {
     const command = new InvokeModelCommand({
@@ -186,7 +227,7 @@ Provide your response in this exact JSON format:
       accept: 'application/json',
       body: JSON.stringify({
         prompt,
-        max_tokens: 2000,
+        max_tokens: 4000,
         temperature: 0.1,
         top_p: 0.9,
       }),
@@ -198,27 +239,44 @@ Provide your response in this exact JSON format:
     // Parse Mistral's response
     const modelOutput = responseBody.outputs[0].text;
     
+    // Log the raw response for debugging
+    console.error('Mistral raw response length:', modelOutput.length);
+    if (modelOutput.length < 500) {
+      console.error('Mistral raw response:', modelOutput);
+    }
+    
     // Try to extract JSON from response
-    const jsonMatch = modelOutput.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      try {
-        const result = JSON.parse(jsonMatch[0]) as BatchSentimentResult;
-        
-        // Add model info
-        result.summary = {
-          ...result.summary,
-          _model: 'mistral-large'
-        } as any;
-        
-        // Cache the successful result
-        sentimentCache.set(cacheKey, result, 600); // 10 minutes
-        
-        return result;
-      } catch (e) {
-        throw new Error('Failed to parse JSON from Mistral batch output');
+    let result: BatchSentimentResult | null = null;
+    
+    // Try direct parse first
+    try {
+      result = JSON.parse(modelOutput) as BatchSentimentResult;
+    } catch (e) {
+      // Try regex extraction
+      const jsonMatch = modelOutput.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          result = JSON.parse(jsonMatch[0]) as BatchSentimentResult;
+        } catch (e2) {
+          console.error('Failed to parse Mistral JSON:', e2);
+        }
       }
+    }
+    
+    if (result && result.results) {
+      // Add model info
+      result.summary = {
+        ...result.summary,
+        _model: 'mistral-large'
+      } as any;
+      
+      // Cache the successful result
+      sentimentCache.set(cacheKey, result, 600); // 10 minutes
+      
+      return result;
     } else {
-      throw new Error('No JSON found in Mistral batch output');
+      console.error('Failed to extract valid JSON from Mistral response');
+      throw new Error('Failed to parse JSON from Mistral batch output');
     }
   } catch (error: any) {
     console.error('Mistral batch sentiment analysis error:', error.message);
@@ -317,6 +375,6 @@ export function getOptimalBatchSize(texts: string[]): number {
   const tokensPerText = Math.ceil(avgTextLength / 4);
   const optimalSize = Math.floor(targetTokens / tokensPerText);
   
-  // Clamp between 5 and 25 texts per batch
-  return Math.max(5, Math.min(25, optimalSize));
+  // Clamp between 5 and 10 texts per batch (smaller to avoid truncation)
+  return Math.max(5, Math.min(10, optimalSize));
 }

@@ -212,6 +212,45 @@
             text-align: right;
             margin-top: 1rem;
         }
+        
+        .financial-content {
+            background: #0a0a0a;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+        
+        .financial-details .metric {
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            background: #1a1a1a;
+            border-radius: 6px;
+            border-left: 3px solid #FF9800;
+        }
+        
+        .financial-details strong {
+            color: #FF9800;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        
+        .market-research-card {
+            border-left: 4px solid #FF9800;
+            background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
+        }
+        
+        .market-research-card h2 {
+            color: #FF9800;
+        }
+        
+        .financial-details pre {
+            background: #0a0a0a;
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
     </style>
 </head>
 <body>
@@ -266,6 +305,70 @@
                 btn.disabled = false;
                 btn.textContent = 'Analyze';
             }
+        }
+        
+        function formatMarketData(data) {
+            if (!data) return '<p>No data available</p>';
+            
+            // Handle the API response structure
+            if (data.success && data.data) {
+                data = data.data;
+            }
+            
+            // If it's a string response, display it as is
+            if (typeof data === 'string') {
+                return `<pre style="white-space: pre-wrap; word-wrap: break-word;">${data}</pre>`;
+            }
+            
+            // Special handling for market analysis data
+            if (data.tam || data.sam || data.som) {
+                let formatted = '<div class="financial-details">';
+                
+                // Market sizing
+                if (data.tam) {
+                    formatted += `<div class="metric"><strong>Total Addressable Market (TAM):</strong> $${(data.tam.value / 1000000000).toFixed(1)}B<br><small>${data.tam.description}</small></div>`;
+                }
+                if (data.sam) {
+                    formatted += `<div class="metric"><strong>Serviceable Addressable Market (SAM):</strong> $${(data.sam.value / 1000000000).toFixed(1)}B<br><small>${data.sam.description}</small></div>`;
+                }
+                if (data.som) {
+                    formatted += `<div class="metric"><strong>Serviceable Obtainable Market (SOM):</strong> $${(data.som.value / 1000000).toFixed(0)}M<br><small>${data.som.description}</small></div>`;
+                }
+                
+                // Competitors
+                if (data.competitors && data.competitors.length > 0) {
+                    formatted += '<div class="metric"><strong>Key Competitors:</strong><ul>';
+                    data.competitors.forEach(comp => {
+                        formatted += `<li>${comp.name} - ${comp.description}</li>`;
+                    });
+                    formatted += '</ul></div>';
+                }
+                
+                // Market trends
+                if (data.marketTrends) {
+                    if (data.marketTrends.growth_rate) {
+                        formatted += `<div class="metric"><strong>Growth Rate:</strong> ${(data.marketTrends.growth_rate * 100).toFixed(1)}%</div>`;
+                    }
+                    if (data.marketTrends.key_drivers) {
+                        formatted += '<div class="metric"><strong>Key Drivers:</strong><ul>';
+                        data.marketTrends.key_drivers.forEach(driver => {
+                            formatted += `<li>${driver}</li>`;
+                        });
+                        formatted += '</ul></div>';
+                    }
+                }
+                
+                // Analysis text
+                if (data.analysis) {
+                    formatted += `<div class="metric"><strong>Detailed Analysis:</strong><pre style="white-space: pre-wrap;">${data.analysis}</pre></div>`;
+                }
+                
+                formatted += '</div>';
+                return formatted;
+            }
+            
+            // Default formatting for other data structures
+            return `<pre style="white-space: pre-wrap; word-wrap: break-word;">${JSON.stringify(data, null, 2)}</pre>`;
         }
         
         function displayResults(data) {
@@ -342,15 +445,96 @@
                 `;
             }
             
-            // Summary Card
+            // Executive Summary Card
             if (data.summary) {
                 html += `
                     <div class="card">
                         <h2>Executive Summary</h2>
-                        <p>${data.summary}</p>
+                        <div class="summary-content">
+                            <pre>${data.summary}</pre>
+                        </div>
                         <div class="timestamp">Generated: ${new Date().toLocaleString()}</div>
                     </div>
                 `;
+            }
+            
+            // Senso.ai Summary Card (if available)
+            if (data.sensoSummary) {
+                html += `
+                    <div class="card">
+                        <h2>AI-Powered Summary (Senso.ai)</h2>
+                        <div class="summary-content">
+                            <pre>${data.sensoSummary}</pre>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Market Research Section
+            if (data.marketResearch && Object.keys(data.marketResearch).length > 0) {
+                html += '<h2 style="color: #FF9800; margin: 2rem 0;">📊 Market Research Analysis</h2>';
+                
+                // Market Analysis Card
+                if (data.marketResearch.marketAnalysis) {
+                    html += `
+                        <div class="card market-research-card">
+                            <h2>Market Analysis</h2>
+                            <div class="financial-content">
+                                ${formatMarketData(data.marketResearch.marketAnalysis)}
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Competitor Analysis Card
+                if (data.marketResearch.competitorAnalysis) {
+                    html += `
+                        <div class="card market-research-card">
+                            <h2>Competitor Analysis</h2>
+                            <div class="financial-content">
+                                ${formatMarketData(data.marketResearch.competitorAnalysis)}
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Financial Projections Card
+                if (data.marketResearch.financialProjections) {
+                    html += `
+                        <div class="card market-research-card">
+                            <h2>Financial Projections</h2>
+                            <div class="financial-content">
+                                ${formatMarketData(data.marketResearch.financialProjections)}
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Investment Recommendations Card
+                if (data.marketResearch.investmentRecommendation) {
+                    html += `
+                        <div class="card market-research-card">
+                            <h2>Investment Recommendations</h2>
+                            <div class="financial-content">
+                                ${formatMarketData(data.marketResearch.investmentRecommendation)}
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Risk Assessment Card
+                if (data.marketResearch.riskAssessment) {
+                    html += `
+                        <div class="card market-research-card">
+                            <h2>Risk Assessment</h2>
+                            <div class="financial-content">
+                                ${formatMarketData(data.marketResearch.riskAssessment)}
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                html += '<div class="timestamp" style="text-align: center; margin: 1rem 0;">Source: AWS Market Research API</div>';
             }
             
             resultsDiv.innerHTML = html || '<div class="error">No data available</div>';

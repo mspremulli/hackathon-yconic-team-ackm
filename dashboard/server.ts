@@ -9,7 +9,9 @@ import 'dotenv/config';
 import { startupAnalysisTool } from '../src/tools/startup-analysis.js';
 import { dashboardSummaryTool } from '../src/tools/dashboard.js';
 import { sentimentAnalysisTool } from '../src/tools/sentiment.js';
+import { sensoSummaryTool } from '../src/tools/senso.js';
 import { queryMongoDB } from '../src/services/mongodb.js';
+import fetch from 'node-fetch';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -34,19 +36,25 @@ app.get('/analyze/:startup', async (req, res) => {
       keywords: [startup]
     });
     
-    // Parse the analysis result (it comes as a formatted string)
-    const lines = analysisResult.split('\n');
-    let summary = '';
-    let dataCollected = false;
+    // The analysis result is already a complete formatted summary
+    const fullSummary = analysisResult;
     
-    // Extract summary from the formatted text
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i].includes('Data Collection Summary')) {
-        dataCollected = true;
-      }
-      if (lines[i].includes('## Summary') || lines[i].includes('## Executive Summary')) {
-        summary = lines.slice(i + 1).join('\n').trim();
-        break;
+    // Debug: Log the actual summary content
+    console.log('Analysis Result Length:', analysisResult.length);
+    console.log('First 500 chars:', analysisResult.substring(0, 500));
+    
+    // Extract key metrics from the summary
+    const lines = analysisResult.split('\n');
+    let dataCollected = false;
+    let successfulSources = 0;
+    
+    for (const line of lines) {
+      if (line.includes('Successfully collected data from')) {
+        const match = line.match(/Successfully collected data from (\d+) sources/);
+        if (match) {
+          successfulSources = parseInt(match[1]);
+          dataCollected = successfulSources > 0;
+        }
       }
     }
     
@@ -111,6 +119,146 @@ app.get('/analyze/:startup', async (req, res) => {
       return sum;
     }, 0);
     
+    // Try to generate Senso.ai summary if API key is available
+    let sensoSummary = null;
+    if (process.env.SENSO_API_KEY) {
+      try {
+        console.log('Generating Senso.ai summary...');
+        const sensoResult = await sensoSummaryTool.handler({
+          startup_name: startup,
+          summary_type: 'executive'
+        });
+        sensoSummary = sensoResult;
+      } catch (error) {
+        console.error('Senso.ai summary generation failed:', error);
+      }
+    }
+    
+    // Get all market research data from external APIs in parallel
+    const marketResearchData: any = {};
+    
+    // Common request body for all endpoints
+    const requestBody = {
+      company: startup,
+      description: `${startup} is a technology company`, // Basic description
+      industry: 'Technology', // Default to tech
+      stage: 'series-a', // Default stage
+      location: 'United States' // Default location
+    };
+    
+    console.log('Market research request body:', JSON.stringify(requestBody));
+    
+    // Run all market research API calls in parallel
+    const marketResearchPromises = [
+      // 1. Market Analysis
+      fetch('https://wvvmrpf334.us-east-1.awsapprunner.com/market-research/market-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+        // signal: AbortSignal.timeout(15000) // 15 second timeout
+      }).then(async (res) => {
+        if (res.ok) {
+          const data = await res.text();
+          try {
+            marketResearchData.marketAnalysis = JSON.parse(data);
+          } catch {
+            marketResearchData.marketAnalysis = data;
+          }
+          console.log('Market analysis received:', data.substring(0, 100));
+        } else {
+          console.error('Market analysis failed:', res.status, res.statusText);
+          const errorText = await res.text();
+          console.error('Market analysis error response:', errorText.substring(0, 200));
+        }
+      }).catch(err => {
+        console.error('Market analysis error:', err.message || err);
+        console.error('Full error:', err);
+      }),
+      
+      // 2. Competitor Analysis
+      fetch('https://wvvmrpf334.us-east-1.awsapprunner.com/market-research/competitor-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      }).then(async (res) => {
+        if (res.ok) {
+          const data = await res.text();
+          try {
+            marketResearchData.competitorAnalysis = JSON.parse(data);
+          } catch {
+            marketResearchData.competitorAnalysis = data;
+          }
+          console.log('Competitor analysis received:', data.substring(0, 100));
+        } else {
+          console.error('Competitor analysis failed:', res.status, res.statusText);
+        }
+      }).catch(err => console.error('Competitor analysis error:', err)),
+      
+      // 3. Financial Projections
+      fetch('https://wvvmrpf334.us-east-1.awsapprunner.com/market-research/financial-projections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      }).then(async (res) => {
+        if (res.ok) {
+          const data = await res.text();
+          try {
+            marketResearchData.financialProjections = JSON.parse(data);
+          } catch {
+            marketResearchData.financialProjections = data;
+          }
+          console.log('Financial projections received:', data.substring(0, 100));
+        } else {
+          console.error('Financial projections failed:', res.status, res.statusText);
+        }
+      }).catch(err => console.error('Financial projections error:', err)),
+      
+      // 4. Investment Recommendations
+      fetch('https://wvvmrpf334.us-east-1.awsapprunner.com/market-research/investment-recommendation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      }).then(async (res) => {
+        if (res.ok) {
+          const data = await res.text();
+          try {
+            marketResearchData.investmentRecommendation = JSON.parse(data);
+          } catch {
+            marketResearchData.investmentRecommendation = data;
+          }
+          console.log('Investment recommendations received:', data.substring(0, 100));
+        } else {
+          console.error('Investment recommendations failed:', res.status, res.statusText);
+        }
+      }).catch(err => console.error('Investment recommendation error:', err)),
+      
+      // 5. Risk Assessment
+      fetch('https://wvvmrpf334.us-east-1.awsapprunner.com/market-research/risk-assessment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      }).then(async (res) => {
+        if (res.ok) {
+          const data = await res.text();
+          try {
+            marketResearchData.riskAssessment = JSON.parse(data);
+          } catch {
+            marketResearchData.riskAssessment = data;
+          }
+          console.log('Risk assessment received:', data.substring(0, 100));
+        } else {
+          console.error('Risk assessment failed:', res.status, res.statusText);
+        }
+      }).catch(err => console.error('Risk assessment error:', err))
+    ];
+    
+    // Wait for all market research calls to complete
+    console.log('Fetching all market research data in parallel...');
+    await Promise.all(marketResearchPromises);
+    
+    console.log('Market research data collected:', Object.keys(marketResearchData));
+    console.log('Market research data details:', JSON.stringify(marketResearchData, null, 2).substring(0, 500));
+    
     // Return structured data
     res.json({
       startup: startup,
@@ -120,7 +268,13 @@ app.get('/analyze/:startup', async (req, res) => {
         totalEngagement
       },
       recentPosts: recentPosts.slice(0, 5), // Top 5 recent posts
-      summary: summary || `Analysis complete for ${startup}. ${dataCollected ? 'Data collected from multiple sources.' : 'Limited data available.'}`
+      summary: fullSummary, // Full executive summary from analysis
+      sensoSummary: sensoSummary, // AI-powered summary from Senso.ai
+      marketResearch: marketResearchData, // All market research data
+      metrics: {
+        successfulSources,
+        dataCollected
+      }
     });
     
   } catch (error: any) {

@@ -9,7 +9,11 @@
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "mcp": "tsx src/index.ts",
-    "dashboard": "tsx dashboard/server.ts"
+    "dashboard": "tsx dashboard/server.ts",
+    "worker": "node dist/temporal/worker.js",
+    "worker:dev": "tsx src/temporal/worker.ts",
+    "temporal:up": "docker-compose -f docker-compose.temporal.yml up -d",
+    "temporal:down": "docker-compose -f docker-compose.temporal.yml down"
   },
   "keywords": [
     "mcp",
@@ -22,13 +26,17 @@
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.848.0",
     "@modelcontextprotocol/sdk": "^1.17.0",
+    "@temporalio/activity": "^1.12.1",
     "@temporalio/client": "^1.12.1",
+    "@temporalio/worker": "^1.12.1",
+    "@temporalio/workflow": "^1.12.1",
     "@types/node": "^24.1.0",
     "axios": "^1.11.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "mongodb": "^6.18.0",
+    "node-fetch": "^2.7.0",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3",
     "zod": "^3.25.76"
